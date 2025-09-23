@@ -1,0 +1,20 @@
+{
+    "head": "linear",
+    "nblocks": 4,
+    "width": 128,
+    "inner_prod_features": true,
+    "cmlp_modulate": true,
+    "cmlp_nlayers": 1,
+    "mass_norm": true,
+    "head_norm": true,
+    "batch_size": null,
+    "grad_accum": 16,
+    "lr": 0.0005,
+    "clip_grad_norm": 2.0,
+    "train_steps": 5000,
+    "viz_steps": 500,
+    "mlp_norm": false,
+    "cmlp_dropout": 0.0,
+    "dropout_p": 0.0,
+    "drop_path": 0.0
+}

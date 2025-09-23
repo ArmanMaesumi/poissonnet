@@ -1,0 +1,23 @@
+{
+    "head": "linear",
+    "nblocks": 3,
+    "width": 128,
+    "dropout_p": 0.0,
+    "drop_path": 0.0,
+    "mlp_norm": false,
+    "inner_prod_features": true,
+    "cmlp_modulate": true,
+    "cmlp_nlayers": 1,
+    "cmlp_dropout": 0.0,
+
+    "train_steps": 15000,
+    "batch_size": null,
+    "grad_accum": 16,
+    "lr": 0.001,
+    "clip_grad_norm": 10.0,
+    "aug_rot": true,
+    "aug": true,
+    
+    "viz_steps": 1000,
+    "name": "moyo-segmentation-final"
+}

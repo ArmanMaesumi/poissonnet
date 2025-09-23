@@ -1,0 +1,21 @@
+{
+    "nblocks": 5,
+    "width": 128,
+    "dropout_p": 0.0,
+    "head_type": "njf",
+    "inner_prod_features": false,
+    "cmlp_modulate": true,
+    "cmlp_nlayers": 3,
+    "mass_norm": false,
+    "mlp_norm": false,
+    "batch_size": 8,
+    "grad_accum": 2,
+    "lr": 0.0005,
+    "clip_grad_norm": null,
+    "train_steps": 150000,
+    "mass_mse": true,
+    "viz_steps": 3000,
+    "lambda_v": 1.0,
+    "lambda_g": 1.0,
+    "extra_features": 153
+  }

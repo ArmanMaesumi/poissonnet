@@ -34,8 +34,7 @@ exp_name = config['exp_name']
 os.makedirs(os.path.join('results', exp_name), exist_ok=True)
 outfile = lambda x: os.path.join('results', exp_name, x)
 
-# data_dir = './smplx_data'
-data_dir = '/media/moyo_toolkit/data/mosh_baked'
+data_dir = './smplx_data'
 train_dataset = MOYOSegmentationDataset(data_dir=data_dir, train=True, config=config)
 train_loader = DataLoader(train_dataset, batch_size=None, shuffle=True)
 train_loader = cycle(train_loader)

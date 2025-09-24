@@ -26,6 +26,16 @@ python setup.py install
 
 See [https://github.com/ArmanMaesumi/torch_mesh_ops](https://github.com/ArmanMaesumi/torch_mesh_ops) for more info.
 
+### Installing with uv:
+If you prefer `uv` as your package manager, consider installing like so (change the Torch CUDA version as needed):
+```bash
+uv venv -p 3.12 .venv
+source .venv/bin/activate
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+uv pip install pyrender libigl cholespy einops scipy matplotlib tqdm trimesh pillow panopti 'smplx[all]'
+uv pip install --no-build-isolation git+https://github.com/ArmanMaesumi/torch_mesh_ops
+```
+
 ## Training:
 We provide training scripts, hyperparameters, and pretrained weights for all of our relevant experiments under `experiments/`. For preparing datasets, please refer to the respective `README.md` files located in these experiment directories. 
 

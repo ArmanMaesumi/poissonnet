@@ -93,9 +93,9 @@ def train_batch(batch_i):
     batch_loss_v = 0
     batch_loss_g = 0
     batch_loss = 0
-    batch_samples = 0
+    accums = 0
 
-    while batch_samples < grad_accum:
+    while accums < grad_accum:
         verts_tar, time = form_batch(train_loader)
 
         preds, preds_grad = model(x_in=verts_src, M=M_src, G=G_src, solver=solver_src, faces=faces_src, vertex_mass=mass_src, extra_features=time)
@@ -116,7 +116,7 @@ def train_batch(batch_i):
         batch_loss += loss.item()
         batch_loss_v += loss_v.item() / grad_accum
         batch_loss_g += loss_g.item() / grad_accum
-        batch_samples += preds.shape[0] # batch size
+        accums += 1
 
     if clip_grad_norm is not None:
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad_norm)

@@ -61,20 +61,19 @@ def form_batch(loader, augment=False):
         faces = faces.unsqueeze(0)
         labels = labels.unsqueeze(0)
 
-    # apply rotation, scale, and shift augmentation:
-    if augment:
-        verts = Point.random_rotate_points_batched(verts)
-        scale_xyz = torch.rand(verts.shape[0], 1, 1) * 0.6 + 0.7
-        verts = verts * scale_xyz
-        shift = torch.randn(verts.shape[0], 1, 3) * 0.25
-        verts = verts + shift
-
     verts = verts.to(device)
     faces = faces.to(device)
     labels = labels.to(device)
 
+    # apply rotation, scale, and shift augmentation:
+    if augment:
+        verts = Point.random_rotate_points_batched(verts)
+        scale_xyz = torch.rand(verts.shape[0], 1, 1, device=verts.device) * 0.6 + 0.7
+        verts = verts * scale_xyz
+        shift = torch.randn(verts.shape[0], 1, 3, device=verts.device) * 0.25
+        verts = verts + shift
+
     vert_mass, solver, G, M = construct_mesh_operators(verts, faces, high_precision=True)
-    
     return verts, faces, vert_mass, solver, G, M, labels
 
 def train_batch(batch_i):

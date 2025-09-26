@@ -8,7 +8,7 @@ import matplotlib.colors as mcolors
 from matplotlib.colors import to_rgb
 from torchvision.utils import make_grid, save_image
 
-os.environ['PYOPENGL_PLATFORM'] = 'egl'
+# os.environ['PYOPENGL_PLATFORM'] = 'egl' # you may need to use this for headless rendering
 import trimesh
 import pyrender
 

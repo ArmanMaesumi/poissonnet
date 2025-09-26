@@ -11,13 +11,13 @@
     "cmlp_dropout": 0.0,
 
     "train_steps": 15000,
-    "batch_size": null,
-    "grad_accum": 16,
+    "batch_size": 16,
+    "grad_accum": 1,
     "lr": 0.001,
     "clip_grad_norm": 10.0,
     "aug_rot": true,
     "aug": true,
     
     "viz_steps": 1000,
-    "name": "moyo-segmentation-final"
+    "name": "moyo-segmentation"
 }

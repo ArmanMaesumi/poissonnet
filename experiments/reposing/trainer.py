@@ -64,9 +64,14 @@ optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 def form_batch(data_loader, augment=False):
     verts_src, verts_tar, faces, pose_params = next(data_loader)
 
+    verts_src = verts_src.to(device)
+    verts_tar = verts_tar.to(device)
+    faces = faces.to(device)
+    pose_params = pose_params.to(device)
+
     if augment: 
         # augment src/target global scale before computing operators
-        scale_xyz = torch.rand(verts_src.shape[0], 1, 1) * 0.6 + 0.7
+        scale_xyz = torch.rand(verts_src.shape[0], 1, 1, device=verts_src.device) * 0.6 + 0.7
         verts_src = verts_src * scale_xyz
         verts_tar = verts_tar * scale_xyz
 
@@ -75,15 +80,10 @@ def form_batch(data_loader, augment=False):
         verts_src = verts_src + shift_xyz
         verts_tar = verts_tar + shift_xyz
 
-    verts_src = verts_src.to(device)
-    verts_tar = verts_tar.to(device)
-    faces = faces.to(device)
-    pose_params = pose_params.to(device)
-
     mass_src, solver_src, G_src, M_src = construct_mesh_operators(verts_src, faces, high_precision=True)
     return verts_src, verts_tar, faces, mass_src, solver_src, G_src, M_src, pose_params
 
-def compute_loss(pred_v, pred_grad, tar_v, G, v_mass, f_mass):
+def compute_loss(pred_v, pred_grad, tar_v, G, v_mass, f_mass, mass_weighted=True):
     tar_grad = torch.bmm(G, tar_v)
     loss_v = MSE_loss(pred_v, tar_v, v_mass, mass_weighted=True)
     loss_g = MSE_loss(pred_grad, tar_grad, f_mass, mass_weighted=True)
@@ -95,9 +95,9 @@ def train_batch(batch_i):
     batch_loss_v = 0
     batch_loss_g = 0
     batch_loss = 0
-    batch_samples = 0
+    accums = 0
 
-    while batch_samples < grad_accum:
+    while accums < grad_accum:
         verts_src, verts_tar, faces, mass_src, solver_src, G_src, M_src, pose_params = form_batch(train_loader, augment=True)
 
         preds, preds_grad = model(
@@ -126,7 +126,7 @@ def train_batch(batch_i):
         batch_loss += loss.item()
         batch_loss_v += loss_v.item() / grad_accum
         batch_loss_g += loss_g.item() / grad_accum
-        batch_samples += preds.shape[0] # batch size
+        accums += 1
 
     if clip_grad_norm is not None:
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad_norm)

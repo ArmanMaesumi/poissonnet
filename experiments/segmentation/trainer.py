@@ -36,11 +36,11 @@ outfile = lambda x: os.path.join('results', exp_name, x)
 
 data_dir = './smplx_data'
 train_dataset = MOYOSegmentationDataset(data_dir=data_dir, train=True, config=config)
-train_loader = DataLoader(train_dataset, batch_size=None, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 train_loader = cycle(train_loader)
 
 test_dataset = MOYOSegmentationDataset(data_dir=data_dir, train=False, config=config)
-test_loader = DataLoader(test_dataset, batch_size=None, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 test_loader = cycle(test_loader)
 
 model = PoissonNet(C_in=3,
@@ -51,7 +51,6 @@ model = PoissonNet(C_in=3,
                     outputs_at='faces',
                     last_activation=lambda x : torch.nn.functional.log_softmax(x,dim=-1),
                     config=config,)
-    
 print('Model parameters:', count_parameters(model))
 model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -65,19 +64,18 @@ def form_batch(loader, augment=False):
         faces = faces.unsqueeze(0)
         labels = labels.unsqueeze(0)
 
-    if augment:
-        verts = Point.random_rotate_points_batched(verts)
-        scale_xyz = torch.rand(verts.shape[0], 1, 1) * 0.6 + 0.7
-        verts = verts * scale_xyz
-        shift = torch.randn(verts.shape[0], 1, 3) * 0.25
-        verts = verts + shift
-
     verts = verts.to(device)
     faces = faces.to(device)
     labels = labels.to(device)
 
+    if augment:
+        verts = Point.random_rotate_points_batched(verts)
+        scale_xyz = torch.rand(verts.shape[0], 1, 1, device=verts.device) * 0.6 + 0.7
+        verts = verts * scale_xyz
+        shift = torch.randn(verts.shape[0], 1, 3, device=verts.device) * 0.25
+        verts = verts + shift
+
     vertex_mass, solver, G, M = construct_mesh_operators(verts, faces, high_precision=True)
-    
     return verts, faces, vertex_mass, solver, G, M, labels
 
 def train_batch(batch_i):
@@ -86,9 +84,9 @@ def train_batch(batch_i):
     batch_loss = 0
     batch_correct = 0
     batch_faces = 0
-    batch_samples = 0
+    accums = 0
 
-    while batch_samples < grad_accum:
+    while accums < grad_accum:
         verts, faces, vertex_mass, solver, G, M, labels = form_batch(train_loader, augment=True)
         
         preds = model(
@@ -99,19 +97,17 @@ def train_batch(batch_i):
             faces=faces, 
             vertex_mass=vertex_mass
         ) # (B, F, cls)
-        preds = preds.squeeze(0)
-        labels = labels.squeeze(0)
         
-        loss = torch.nn.functional.nll_loss(preds, labels) / grad_accum
+        loss = torch.nn.functional.nll_loss(preds.transpose(1, 2), labels) / grad_accum
         loss.backward()
         
-        pred_labels = torch.max(preds, dim=1).indices
+        pred_labels = torch.max(preds, dim=-1).indices
         this_correct = pred_labels.eq(labels).sum().item()
 
         batch_correct += this_correct
         batch_loss += loss.item()
-        batch_faces += preds.shape[0] # number of faces
-        batch_samples += 1
+        batch_faces += preds.shape[0] * preds.shape[-2] # total num faces
+        accums += 1
     
     if clip_grad_norm is not None:
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad_norm)
@@ -122,10 +118,10 @@ def train_batch(batch_i):
     if batch_i % viz_steps == 0:
         with torch.no_grad():
             verts_np = to_np(verts[0])
-            preds_np = to_np(preds)
+            preds_np = to_np(preds[0])
             faces_np = to_np(faces[0])
-            labels_np = to_np(labels)
-            class_np = np.argmax(preds_np, axis=1) # map preds to class ids
+            labels_np = to_np(labels[0])
+            class_np = np.argmax(preds_np, axis=-1) # map preds to class ids
 
             render_pred = add_text(render_segmentation(verts_np, faces_np, class_np), 'Prediction')
             render_gt = add_text(render_segmentation(verts_np, faces_np, labels_np), 'Ground Truth')
@@ -139,14 +135,17 @@ def train_batch(batch_i):
 def test():
     model.eval()
     
+    n_test_batches = (len(test_dataset) + batch_size - 1) // batch_size
+
     test_loss = 0
     test_correct = 0
-    test_samples = 0
+    test_faces = 0
 
     # sample 32 random indices for visualization:
-    render_idx = torch.randint(0, len(test_dataset), (32,)).tolist()
+    render_idx = torch.randperm(n_test_batches)[:32].tolist()
     renders = []
-    for i in range(len(test_dataset)):
+
+    for i in range(n_test_batches):
         verts, faces, vertex_mass, solver, G, M, labels = form_batch(test_loader)
 
         preds = model(
@@ -157,27 +156,24 @@ def test():
             faces=faces, 
             vertex_mass=vertex_mass
         )
-        preds = preds.squeeze(0)
-        labels = labels.squeeze(0)
-        loss = torch.nn.functional.nll_loss(preds, labels)
+
+        loss = torch.nn.functional.nll_loss(preds.transpose(1, 2), labels)
         
-        # track accuracy
-        pred_labels = torch.max(preds, dim=1).indices
+        pred_labels = torch.max(preds, dim=-1).indices
         this_correct = pred_labels.eq(labels).sum().item()
         
         test_correct += this_correct
         test_loss += loss.item()
-        test_samples += preds.shape[0] # number of faces
+        test_faces += preds.shape[0] * preds.shape[-2] # total num faces
 
-        # Viz:
-        verts_np = to_np(verts[0])
-        preds_np = to_np(preds)
-        faces_np = to_np(faces[0])
-        labels_np = to_np(labels)
-        class_np = np.argmax(preds_np, axis=1) # map preds to class ids
-
-        # Render src tar and pred mesh:
+        # Render pred and gt for the first item in batch
         if i in render_idx:
+            verts_np = to_np(verts[0])
+            preds_np = to_np(preds[0])
+            faces_np = to_np(faces[0])
+            labels_np = to_np(labels[0])
+            class_np = np.argmax(preds_np, axis=-1) # map preds to class ids
+            
             render_pred = add_text(render_segmentation(verts_np, faces_np, class_np), 'Prediction')
             render_gt = add_text(render_segmentation(verts_np, faces_np, labels_np), 'Ground Truth')
             render = torch.cat([render_pred, render_gt], dim=-1)
@@ -186,8 +182,8 @@ def test():
     renders = image_grid(renders)
     save_image(renders, outfile('viz_test.png'))
     
-    test_loss = test_loss / len(test_dataset)
-    test_acc = test_correct / test_samples
+    test_loss = test_loss / n_test_batches
+    test_acc = test_correct / test_faces
     return test_loss, test_acc
 
 

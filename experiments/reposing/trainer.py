@@ -224,7 +224,7 @@ for step_i in pbar:
     train_losses_v += [train_loss_v]
     train_losses_g += [train_loss_g]
 
-    if step_i % viz_steps == 0:
+    if step_i % viz_steps == 0 and step_i > 0:
         test_loss = test()
         test_losses += [test_loss]
         test_steps += [step_i]
